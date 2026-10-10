@@ -315,101 +315,34 @@ function sharePost(postId) {
     });
 }
 
-// Image Selection
-function setupEventListeners() {
-    if (publishQuickPostBtn) {
-        publishQuickPostBtn.addEventListener('click', () => {
-            createPost(quickPostCaption.value, state.selectedImageFile);
-        });
-    }
-
-    if (quickImgFile) {
-        quickImgFile.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                state.selectedImageFile = file;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    previewImg.src = ev.target.result;
-                    imagePreviewBox.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    if (removeImgBtn) {
-        removeImgBtn.addEventListener('click', () => {
-            state.selectedImageFile = null;
-            if (quickImgFile) quickImgFile.value = '';
-            imagePreviewBox.style.display = 'none';
-        });
-    }
-
-    // Modal Create Post Form
-    const modalPostForm = document.getElementById('modal-post-form');
-    if (modalPostForm) {
-        modalPostForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const caption = document.getElementById('modal-post-caption').value;
-            const imgUrl = document.getElementById('modal-post-img-url').value;
-            const file = document.getElementById('modal-post-file').files[0];
-            createPost(caption, file, imgUrl);
-        });
-    }
-
-    // Auth Forms
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value.trim();
-            const pass = document.getElementById('login-password').value;
-            await handleLogin(email, pass);
-        });
-    }
-
-    const registerForm = document.getElementById('register-form');
-    if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('reg-username').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const pass = document.getElementById('reg-password').value;
-            await handleRegister(username, email, pass);
-        });
-    }
-
-    const forgotForm = document.getElementById('forgot-form');
-    if (forgotForm) {
-        forgotForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('forgot-email').value.trim();
-            await handleForgotPassword(email);
-        });
-    }
-}
-
 // Authentication Handlers
 async function handleLogin(emailOrUser, password) {
     try {
+        const payload = {
+            password: password
+        };
+        if (emailOrUser.includes('@')) {
+            payload.email = emailOrUser.trim();
+        } else {
+            payload.username = emailOrUser.trim();
+        }
+
         const res = await fetch('/api/User/Login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: emailOrUser.includes('@') ? emailOrUser : '',
-                username: !emailOrUser.includes('@') ? emailOrUser : '',
-                password: password
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Login failed');
 
+        const userData = data.user || {};
         state.currentUser = {
-            userId: 'user_' + Math.random().toString(36).substring(2, 8),
-            username: emailOrUser.includes('@') ? emailOrUser.split('@')[0] : emailOrUser,
-            profilePic: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            userId: userData.userId || ('user_' + Math.random().toString(36).substring(2, 8)),
+            username: userData.username || emailOrUser,
+            email: userData.email || (emailOrUser.includes('@') ? emailOrUser : ''),
+            profilePic: userData.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userData.username || emailOrUser)}`,
+            bio: userData.bio || '',
             isLoggedIn: true,
             token: data.token
         };
@@ -417,7 +350,8 @@ async function handleLogin(emailOrUser, password) {
         localStorage.setItem('nexus_user', JSON.stringify(state.currentUser));
         updateUserUI();
         closeModal('auth-modal');
-        showToast('Logged in successfully! Welcome back 👋', 'success');
+        showToast(`Welcome back, ${state.currentUser.username}! 👋`, 'success');
+        loadFeed();
     } catch (err) {
         showToast(err.message, 'error');
     }
@@ -429,17 +363,36 @@ async function handleRegister(username, email, password) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                username,
-                email,
-                password
+                username: username.trim(),
+                email: email.trim(),
+                password: password
             })
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Registration failed');
 
-        showToast('Registration successful! Please log in.', 'success');
-        switchAuthTab('login');
+        if (data.user && data.token) {
+            state.currentUser = {
+                userId: data.user.userId,
+                username: data.user.username,
+                email: data.user.email,
+                profilePic: data.user.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`,
+                bio: data.user.bio || '',
+                isLoggedIn: true,
+                token: data.token
+            };
+            localStorage.setItem('nexus_user', JSON.stringify(state.currentUser));
+            updateUserUI();
+            closeModal('auth-modal');
+            showToast(`Account created! Welcome, ${data.user.username} 🎉`, 'success');
+            loadFeed();
+        } else {
+            showToast('Registration successful! Please log in.', 'success');
+            switchAuthTab('login');
+            const loginEmailInput = document.getElementById('login-email');
+            if (loginEmailInput) loginEmailInput.value = email;
+        }
     } catch (err) {
         showToast(err.message, 'error');
     }

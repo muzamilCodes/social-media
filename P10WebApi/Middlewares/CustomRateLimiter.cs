@@ -24,7 +24,13 @@ namespace P10_WebApi.Middlewares
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown"; // e.g 
+            if (!context.Request.Path.StartsWithSegments("/api"))
+            {
+                await _next(context);
+                return;
+            }
+
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
 
             //   {  key : value}

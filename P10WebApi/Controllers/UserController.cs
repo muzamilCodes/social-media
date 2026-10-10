@@ -32,87 +32,135 @@ private readonly IMailService mailService;
         }
 
         [HttpPost("Register")]
-        public async Task<ActionResult> Register(User user)
+        public async Task<ActionResult> Register([FromBody] RegisterRequest req)
         {
-            // validation 
-            if (string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Email) || string.IsNullOrEmpty(user.Password))
+            if (req == null || string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             {
-
-                return BadRequest(new { message = "All the feilds are required!" });
+                return BadRequest(new { message = "Username, email, and password are all required." });
             }
 
-            if (user.Password.Length < 8)
+            if (req.Password.Length < 6)
             {
-
-                return BadRequest(new { message = "Password is less than 8 characters" });
+                return BadRequest(new { message = "Password must be at least 6 characters long." });
             }
 
+            var cleanUsername = req.Username.Trim();
+            var cleanEmail = req.Email.Trim().ToLowerInvariant();
 
-            var existingUser = await db.Users.Find(u => u.Email == user.Email).FirstOrDefaultAsync();
-
-
+            // Check if user already exists with email or username
+            var existingUser = await db.Users.Find(u => 
+                (u.Email != null && u.Email.ToLower() == cleanEmail) || 
+                (u.Username != null && u.Username.ToLower() == cleanUsername.ToLower())
+            ).FirstOrDefaultAsync();
 
             if (existingUser != null)
             {
-
-                return BadRequest(new { message = "User with this email already exists" });
+                if (string.Equals(existingUser.Email, cleanEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "An account with this email already exists." });
+                }
+                return BadRequest(new { message = "This username is already taken. Please choose another." });
             }
 
+            var defaultAvatar = $"https://api.dicebear.com/7.x/avataaars/svg?seed={Uri.EscapeDataString(cleanUsername)}";
+            var user = new User
+            {
+                Username = cleanUsername,
+                Email = cleanEmail,
+                Password = BCrypt.Net.BCrypt.HashPassword(req.Password),
+                ProfilePic = !string.IsNullOrWhiteSpace(req.ProfilePic) ? req.ProfilePic : defaultAvatar,
+                Bio = !string.IsNullOrWhiteSpace(req.Bio) ? req.Bio : "Hello! Excited to connect on Nexus.",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
 
-            var passEncrypt = BCrypt.Net.BCrypt.HashPassword(user.Password);
-
-            user.Password = passEncrypt;
-    
             await db.Users.InsertOneAsync(user);
 
+            var userIdGuid = Guid.TryParse(user.UserId, out var parsedGuid) ? parsedGuid : Guid.NewGuid();
+            var token = tokenService.CreateToken(userIdGuid, user.Email, user.Username, 7 * 24 * 60);
 
-            return Ok(new { message = "User registered Succesfully !" });
+            HttpContext.Response.Cookies.Append("authToken", token, new CookieOptions
+            {
+                Secure = false,
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
+
+            return Ok(new
+            {
+                message = "User registered successfully!",
+                token,
+                user = new
+                {
+                    userId = user.UserId,
+                    username = user.Username,
+                    email = user.Email,
+                    profilePic = user.ProfilePic,
+                    bio = user.Bio
+                }
+            });
         }
 
-
-
         [HttpPost("Login")]
-        public async Task<ActionResult> Login(User req)
+        public async Task<ActionResult> Login([FromBody] LoginRequest req)
         {
-            // validation - allow either email or username with password
-            if ((string.IsNullOrEmpty(req.Username) && string.IsNullOrEmpty(req.Email)) || string.IsNullOrEmpty(req.Password))
+            var identifier = (req?.Email ?? req?.Username ?? "").Trim();
+            if (string.IsNullOrEmpty(identifier) || string.IsNullOrEmpty(req?.Password))
             {
-                return BadRequest(new { message = "Email or Username, and Password are required!" });
+                return BadRequest(new { message = "Email/Username and Password are required!" });
             }
 
+            var lowerId = identifier.ToLowerInvariant();
             var existingUser = await db.Users
-                .Find(u => (!string.IsNullOrEmpty(req.Email) && u.Email == req.Email) ||
-                           (!string.IsNullOrEmpty(req.Username) && u.Username == req.Username))
+                .Find(u => (u.Email != null && u.Email.ToLower() == lowerId) ||
+                           (u.Username != null && u.Username.ToLower() == lowerId))
                 .FirstOrDefaultAsync();
 
             if (existingUser == null)
             {
-                return BadRequest(new { message = "No User Found with provided credentials" });
+                return BadRequest(new { message = "No account found with this email or username." });
             }
 
-            // pass verify
-            var passVerify = BCrypt.Net.BCrypt.Verify(req.Password, existingUser.Password);
-
-            if (passVerify)
+            bool passVerify = false;
+            try
             {
-                // session management // jwt token then send that to cookies
-                var userIdGuid = Guid.TryParse(existingUser.UserId, out var parsedGuid) ? parsedGuid : Guid.NewGuid();
-                var token = tokenService.CreateToken(userIdGuid, existingUser.Email, existingUser.Username, 7 * 24 * 60);
+                passVerify = BCrypt.Net.BCrypt.Verify(req.Password, existingUser.Password);
+            }
+            catch
+            {
+                passVerify = false;
+            }
 
-                HttpContext.Response.Cookies.Append("authToken", token, new CookieOptions
+            if (!passVerify)
+            {
+                return BadRequest(new { message = "Incorrect password. Please try again." });
+            }
+
+            var userIdGuid = Guid.TryParse(existingUser.UserId, out var parsedGuid) ? parsedGuid : Guid.NewGuid();
+            var token = tokenService.CreateToken(userIdGuid, existingUser.Email, existingUser.Username, 7 * 24 * 60);
+
+            HttpContext.Response.Cookies.Append("authToken", token, new CookieOptions
+            {
+                Secure = false,
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
+
+            return Ok(new
+            {
+                message = "User login successful",
+                token,
+                user = new
                 {
-                    Secure = false,
-                    HttpOnly = true,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.Now.AddDays(7)
-                });
-
-                return Ok(new { message = "User login successful", token });
-            }
-            else
-            {
-                return BadRequest(new { message = "Incorrect Password !" });
-            }
+                    userId = existingUser.UserId,
+                    username = existingUser.Username,
+                    email = existingUser.Email,
+                    profilePic = existingUser.ProfilePic ?? $"https://api.dicebear.com/7.x/avataaars/svg?seed={Uri.EscapeDataString(existingUser.Username)}",
+                    bio = existingUser.Bio ?? ""
+                }
+            });
         }
 
 
