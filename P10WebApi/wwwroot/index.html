@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Social — Modern Social Media</title>
+    <meta name="description" content="Connect, share, and engage with the world on Nexus Social. Powered by .NET 9 and MongoDB.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="ambient-glow"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <a class="logo-group" href="/">
+            <div class="logo-icon">✨</div>
+            <span class="logo-text">Nexus</span>
+        </a>
+
+        <div class="header-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search posts, tags, or creators..." id="search-input">
+        </div>
+
+        <div class="header-actions">
+            <a href="/scalar" target="_blank" class="icon-btn-pill" title="View OpenAPI Documentation">
+                <span>⚡</span> API Docs
+            </a>
+            <button class="icon-btn-pill" id="header-auth-btn">Sign In</button>
+        </div>
+    </header>
+
+    <!-- Main Grid Layout -->
+    <div class="app-layout">
+        <!-- Left Sidebar -->
+        <aside class="left-sidebar">
+            <div class="nav-links">
+                <button class="nav-btn active" id="nav-home">
+                    <span class="icon">🏠</span> <span>Home Feed</span>
+                </button>
+                <button class="nav-btn" id="nav-explore">
+                    <span class="icon">🔥</span> <span>Explore</span>
+                </button>
+                <button class="nav-btn" id="nav-notifications" onclick="showToast('You are all caught up! ✨', 'success')">
+                    <span class="icon">🔔</span> <span>Notifications</span>
+                </button>
+                <button class="nav-btn" id="nav-messages" onclick="showToast('Direct messaging coming soon! 💬', 'success')">
+                    <span class="icon">✉️</span> <span>Messages</span>
+                </button>
+                <button class="nav-btn" id="nav-profile" onclick="openAuthModal('login')">
+                    <span class="icon">👤</span> <span>Profile</span>
+                </button>
+                
+                <button class="create-btn-primary" onclick="openCreatePostModal()">
+                    <span>➕</span> <span>Create Post</span>
+                </button>
+            </div>
+
+            <div class="sidebar-user-card" id="sidebar-user">
+                <div class="user-info" onclick="openAuthModal('login')">
+                    <img class="avatar" id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="avatar">
+                    <div class="user-names">
+                        <div class="user-display-name" id="user-display-name">Guest_Explorer</div>
+                        <div class="user-handle" id="user-handle">@guest</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Feed -->
+        <main class="center-feed">
+            <!-- Stories -->
+            <div class="stories-container">
+                <div class="story-item" onclick="openCreatePostModal()">
+                    <div class="story-ring" style="background: var(--border-subtle); display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--primary);">
+                        ➕
+                    </div>
+                    <span class="story-name">Add Story</span>
+                </div>
+                <div class="story-item">
+                    <div class="story-ring">
+                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" alt="Sarah">
+                    </div>
+                    <span class="story-name">sarah_travels</span>
+                </div>
+                <div class="story-item">
+                    <div class="story-ring">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Maya">
+                    </div>
+                    <span class="story-name">maya_art</span>
+                </div>
+                <div class="story-item">
+                    <div class="story-ring">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" alt="Alex">
+                    </div>
+                    <span class="story-name">alex_dev</span>
+                </div>
+                <div class="story-item">
+                    <div class="story-ring">
+                        <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150" alt="Emma">
+                    </div>
+                    <span class="story-name">emma_design</span>
+                </div>
+            </div>
+
+            <!-- Quick Create Post Box -->
+            <div class="create-post-card">
+                <div class="create-post-top">
+                    <img class="avatar" id="create-post-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" alt="avatar">
+                    <textarea id="quick-post-caption" placeholder="What's happening? Share a thought, photo, or update..."></textarea>
+                </div>
+
+                <div class="image-preview-box" id="image-preview-box">
+                    <img id="preview-img" src="" alt="preview">
+                    <button class="remove-img-btn" id="remove-img-btn">✕</button>
+                </div>
+
+                <div class="create-post-bottom">
+                    <div class="post-media-options">
+                        <label class="icon-btn-pill" style="cursor: pointer;">
+                            <span>🖼️</span> Photo
+                            <input type="file" id="quick-img-file" accept="image/*" style="display: none;">
+                        </label>
+                        <button class="icon-btn-pill" onclick="openCreatePostModal()">
+                            <span>🔗</span> Image URL
+                        </button>
+                    </div>
+                    <button class="publish-btn" id="publish-quick-post">Publish</button>
+                </div>
+            </div>
+
+            <!-- Feed Stream -->
+            <div id="feed-container">
+                <!-- Posts dynamically rendered here by app.js -->
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="right-sidebar">
+            <!-- Server Status Widget -->
+            <div class="server-status-card">
+                <div class="server-status-info">
+                    <div class="status-dot"></div>
+                    <span>.NET 9 & MongoDB Live</span>
+                </div>
+                <a href="/scalar" target="_blank" style="color: var(--text-muted); font-size: 13px; text-decoration: none;">Docs ↗</a>
+            </div>
+
+            <!-- Trending Widget -->
+            <div class="widget-card">
+                <div class="widget-title">
+                    <span>Trending Topics</span>
+                    <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">Explore</span>
+                </div>
+                <div class="trending-list">
+                    <div class="trending-item">
+                        <div>
+                            <div class="trending-tag">#DotNet9</div>
+                            <div class="trending-count">24.5K posts</div>
+                        </div>
+                        <span style="color:var(--text-muted)">📈</span>
+                    </div>
+                    <div class="trending-item">
+                        <div>
+                            <div class="trending-tag">#WebArchitecture</div>
+                            <div class="trending-count">18.2K posts</div>
+                        </div>
+                        <span style="color:var(--text-muted)">🚀</span>
+                    </div>
+                    <div class="trending-item">
+                        <div>
+                            <div class="trending-tag">#TravelDiaries</div>
+                            <div class="trending-count">12.9K posts</div>
+                        </div>
+                        <span style="color:var(--text-muted)">🌄</span>
+                    </div>
+                    <div class="trending-item">
+                        <div>
+                            <div class="trending-tag">#ArtificialIntelligence</div>
+                            <div class="trending-count">56.1K posts</div>
+                        </div>
+                        <span style="color:var(--text-muted)">🤖</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Who to follow Widget -->
+            <div class="widget-card">
+                <div class="widget-title">
+                    <span>Suggested Creators</span>
+                </div>
+                <div class="suggested-users">
+                    <div class="suggested-user-item">
+                        <div class="user-info">
+                            <img class="avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="avatar">
+                            <div>
+                                <div class="user-display-name">Maya Lin</div>
+                                <div class="user-handle">@maya_art</div>
+                            </div>
+                        </div>
+                        <button class="follow-btn" onclick="this.classList.toggle('following'); this.textContent = this.classList.contains('following') ? 'Following' : 'Follow'">Follow</button>
+                    </div>
+                    <div class="suggested-user-item">
+                        <div class="user-info">
+                            <img class="avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" alt="avatar">
+                            <div>
+                                <div class="user-display-name">David Chen</div>
+                                <div class="user-handle">@david_tech</div>
+                            </div>
+                        </div>
+                        <button class="follow-btn" onclick="this.classList.toggle('following'); this.textContent = this.classList.contains('following') ? 'Following' : 'Follow'">Follow</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Auth Modal (Login / Register / Forgot Password) -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal('auth-modal')">✕</button>
+            <div class="modal-tabs">
+                <button class="modal-tab-btn active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+                <button class="modal-tab-btn" id="tab-register" onclick="switchAuthTab('register')">Sign Up</button>
+                <button class="modal-tab-btn" id="tab-forgot" onclick="switchAuthTab('forgot')">Forgot Pass</button>
+            </div>
+
+            <!-- Login Pane -->
+            <div class="auth-pane" id="pane-login">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">Email or Username</label>
+                        <input type="text" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-full">Sign In to Nexus</button>
+                </form>
+            </div>
+
+            <!-- Register Pane -->
+            <div class="auth-pane" id="pane-register" style="display: none;">
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="reg-username">Username</label>
+                        <input type="text" id="reg-username" placeholder="cool_creator" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">Email Address</label>
+                        <input type="email" id="reg-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Password (min 8 chars)</label>
+                        <input type="password" id="reg-password" placeholder="••••••••" minlength="8" required>
+                    </div>
+                    <button type="submit" class="btn-full">Create Account</button>
+                </form>
+            </div>
+
+            <!-- Forgot Password Pane -->
+            <div class="auth-pane" id="pane-forgot" style="display: none;">
+                <form id="forgot-form">
+                    <div class="form-group">
+                        <label for="forgot-email">Account Email</label>
+                        <input type="email" id="forgot-email" placeholder="you@example.com" required>
+                    </div>
+                    <button type="submit" class="btn-full">Send 6-Digit OTP</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Post Modal -->
+    <div class="modal-overlay" id="post-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal('post-modal')">✕</button>
+            <h2 style="margin-bottom: 20px; font-size: 22px;">Create New Post</h2>
+            <form id="modal-post-form">
+                <div class="form-group">
+                    <label for="modal-post-caption">Caption</label>
+                    <textarea id="modal-post-caption" rows="4" placeholder="What would you like to share with the community?" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="modal-post-img-url">Image URL (Optional)</label>
+                    <input type="url" id="modal-post-img-url" placeholder="https://example.com/photo.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="modal-post-file">Or Upload Image File</label>
+                    <input type="file" id="modal-post-file" accept="image/*">
+                </div>
+                <button type="submit" class="btn-full">Share Post 🚀</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="/js/app.js"></script>
+</body>
+</html>

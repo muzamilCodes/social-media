@@ -195,9 +195,48 @@ private readonly IMailService mailService;
             }
         }
 
+        [HttpGet("profile/{identifier}")]
+        public async Task<ActionResult> GetProfile(string identifier)
+        {
+            var user = await db.Users
+                .Find(u => u.UserId == identifier || u.Username == identifier)
+                .Project(u => new
+                {
+                    u.UserId,
+                    u.Username,
+                    u.Email,
+                    u.ProfilePic,
+                    u.Bio,
+                    u.Posts,
+                    u.CreatedAt
+                })
+                .FirstOrDefaultAsync();
 
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
 
-        // [HttpPost]
+            return Ok(user);
+        }
+
+        [HttpGet("suggestions")]
+        public async Task<ActionResult> GetSuggestions()
+        {
+            var users = await db.Users
+                .Find(_ => true)
+                .Limit(5)
+                .Project(u => new
+                {
+                    u.UserId,
+                    u.Username,
+                    u.ProfilePic,
+                    u.Bio
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
         // public async Task<ActionResult> UploadProfile(IFormFile image)
         // {
         //     // actual upload 

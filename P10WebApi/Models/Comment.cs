@@ -15,6 +15,7 @@ public class Comment : BaseEntity
     public string? CommentId { get; set; }
     public required string PostId { get; set; }
     public required string UserId { get; set; }
+    public string? Username { get; set; }
     public required string CommentText { get; set; }
     public bool FlaggedForReport { get; set; } = false;
     public bool IsEdited { get; set; } = false;
