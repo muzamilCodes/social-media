@@ -136,9 +136,20 @@
                 </div>
             </div>
 
-            <!-- Feed Stream -->
-            <div id="feed-container">
-                <!-- Posts dynamically rendered here by app.js -->
+            <!-- Filter Pills Bar -->
+            <div class="feed-filter-bar">
+                <button class="filter-pill active" id="filter-all" onclick="setFeedFilter('all')">🌟 All Posts</button>
+                <button class="filter-pill" id="filter-trending" onclick="setFeedFilter('trending')">🔥 Trending</button>
+                <button class="filter-pill" id="filter-photos" onclick="setFeedFilter('photos')">📷 Photos</button>
+                <button class="filter-pill" id="filter-myposts" onclick="setFeedFilter('myposts')">👤 My Posts</button>
+            </div>
+
+            <!-- Views: Home Feed vs Explore vs Profile -->
+            <div id="main-view-container">
+                <!-- Feed Stream -->
+                <div id="feed-container">
+                    <!-- Posts dynamically rendered here by app.js -->
+                </div>
             </div>
         </main>
 
@@ -157,36 +168,36 @@
             <div class="widget-card">
                 <div class="widget-title">
                     <span>Trending Topics</span>
-                    <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">Explore</span>
+                    <span style="font-size: 13px; font-weight: normal; color: var(--primary); cursor: pointer;" onclick="showExplore()">View All ↗</span>
                 </div>
                 <div class="trending-list">
-                    <div class="trending-item">
+                    <div class="trending-item" onclick="searchTag('DotNet9')">
                         <div>
                             <div class="trending-tag">#DotNet9</div>
                             <div class="trending-count">24.5K posts</div>
                         </div>
                         <span style="color:var(--text-muted)">📈</span>
                     </div>
-                    <div class="trending-item">
+                    <div class="trending-item" onclick="searchTag('WebDev')">
                         <div>
-                            <div class="trending-tag">#WebArchitecture</div>
+                            <div class="trending-tag">#WebDev</div>
                             <div class="trending-count">18.2K posts</div>
                         </div>
                         <span style="color:var(--text-muted)">🚀</span>
                     </div>
-                    <div class="trending-item">
+                    <div class="trending-item" onclick="searchTag('Travel')">
                         <div>
-                            <div class="trending-tag">#TravelDiaries</div>
+                            <div class="trending-tag">#Travel</div>
                             <div class="trending-count">12.9K posts</div>
                         </div>
                         <span style="color:var(--text-muted)">🌄</span>
                     </div>
-                    <div class="trending-item">
+                    <div class="trending-item" onclick="searchTag('Art')">
                         <div>
-                            <div class="trending-tag">#ArtificialIntelligence</div>
+                            <div class="trending-tag">#Art</div>
                             <div class="trending-count">56.1K posts</div>
                         </div>
-                        <span style="color:var(--text-muted)">🤖</span>
+                        <span style="color:var(--text-muted)">🎨</span>
                     </div>
                 </div>
             </div>
@@ -198,24 +209,24 @@
                 </div>
                 <div class="suggested-users">
                     <div class="suggested-user-item">
-                        <div class="user-info">
+                        <div class="user-info" onclick="filterByAuthor('maya_art')">
                             <img class="avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="avatar">
                             <div>
                                 <div class="user-display-name">Maya Lin</div>
                                 <div class="user-handle">@maya_art</div>
                             </div>
                         </div>
-                        <button class="follow-btn" onclick="this.classList.toggle('following'); this.textContent = this.classList.contains('following') ? 'Following' : 'Follow'">Follow</button>
+                        <button class="follow-btn" onclick="toggleFollow(this)">Follow</button>
                     </div>
                     <div class="suggested-user-item">
-                        <div class="user-info">
+                        <div class="user-info" onclick="filterByAuthor('alex_dev')">
                             <img class="avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" alt="avatar">
                             <div>
-                                <div class="user-display-name">David Chen</div>
-                                <div class="user-handle">@david_tech</div>
+                                <div class="user-display-name">Alex Dev</div>
+                                <div class="user-handle">@alex_dev</div>
                             </div>
                         </div>
-                        <button class="follow-btn" onclick="this.classList.toggle('following'); this.textContent = this.classList.contains('following') ? 'Following' : 'Follow'">Follow</button>
+                        <button class="follow-btn" onclick="toggleFollow(this)">Follow</button>
                     </div>
                 </div>
             </div>
@@ -299,6 +310,78 @@
                 </div>
                 <button type="submit" class="btn-full">Share Post 🚀</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Story Viewer Modal -->
+    <div class="modal-overlay" id="story-modal">
+        <div class="story-viewer-content">
+            <img class="story-viewer-img" id="story-img" src="" alt="Story">
+            <div class="story-progress-bar">
+                <div class="story-progress-fill" id="story-progress"></div>
+            </div>
+            <div class="story-viewer-header">
+                <div class="story-author-info">
+                    <img class="avatar" id="story-author-avatar" style="width: 32px; height: 32px;" src="" alt="avatar">
+                    <span id="story-author-name">Username</span>
+                </div>
+                <button class="modal-close" style="position: static; color: #fff;" onclick="closeModal('story-modal')">✕</button>
+            </div>
+            <div class="story-viewer-footer">
+                <p id="story-caption" style="font-size: 15px;">Capturing special moments ✨</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div class="modal-overlay" id="notifications-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal('notifications-modal')">✕</button>
+            <h2 style="margin-bottom: 20px; font-size: 22px;">Notifications</h2>
+            <div id="notifications-list">
+                <div class="notification-item unread">
+                    <span>❤️</span>
+                    <div><strong>sarah_travels</strong> liked your mountain sunset post. <span style="color:var(--text-muted)">10m ago</span></div>
+                </div>
+                <div class="notification-item unread">
+                    <span>💬</span>
+                    <div><strong>alex_dev</strong> commented: "Incredible view! Which camera did you shoot with?" <span style="color:var(--text-muted)">1h ago</span></div>
+                </div>
+                <div class="notification-item">
+                    <span>👥</span>
+                    <div><strong>maya_art</strong> started following you. <span style="color:var(--text-muted)">3h ago</span></div>
+                </div>
+                <div class="notification-item">
+                    <span>🚀</span>
+                    <div><strong>Nexus Team</strong>: Welcome to the new social media app! <span style="color:var(--text-muted)">1d ago</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direct Messages Modal -->
+    <div class="modal-overlay" id="messages-modal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal('messages-modal')">✕</button>
+            <h2 style="margin-bottom: 20px; font-size: 22px;">Direct Messages</h2>
+            <div id="messages-list">
+                <div class="dm-thread" onclick="showToast('Opened chat with Alex! 💬', 'success')">
+                    <img class="avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" alt="avatar">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">Alex Dev</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">Hey, did you check out the new feed?</div>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-muted);">2m ago</span>
+                </div>
+                <div class="dm-thread" onclick="showToast('Opened chat with Sarah! 💬', 'success')">
+                    <img class="avatar" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150" alt="avatar">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">Sarah Travels</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">Thanks for the love on my post! 🌄</div>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-muted)">1h ago</span>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -472,6 +472,303 @@ function logoutUser() {
     showToast('Signed out successfully', 'success');
 }
 
+// Navigation & Views
+function showHome() {
+    setActiveNav('nav-home');
+    state.activeView = 'home';
+    const mainView = document.getElementById('main-view-container');
+    mainView.innerHTML = '<div id="feed-container"></div>';
+    renderPosts();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showExplore() {
+    setActiveNav('nav-explore');
+    state.activeView = 'explore';
+    const mainView = document.getElementById('main-view-container');
+    
+    const photos = state.posts.filter(p => p.postpicURL);
+    mainView.innerHTML = `
+        <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 22px; margin-bottom: 6px;">Explore Trending Content 🔥</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Discover popular photography, tech discussions, and creators across Nexus.</p>
+        </div>
+        <div class="explore-grid">
+            ${photos.map(p => `
+                <div class="explore-item" onclick="openPostDetail('${p.postId}')">
+                    <img src="${escapeHtml(p.postpicURL)}" alt="explore">
+                    <div class="explore-overlay">
+                        <div class="explore-info">
+                            <div><strong>@${escapeHtml(p.username)}</strong></div>
+                            <div style="font-size: 12px; margin-top: 4px;">❤️ ${(p.likes || []).length} &nbsp; 💬 ${(p.comments || []).length}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function showProfile() {
+    setActiveNav('nav-profile');
+    state.activeView = 'profile';
+    const mainView = document.getElementById('main-view-container');
+
+    const userPosts = state.posts.filter(p => p.userId === state.currentUser.userId || p.username === state.currentUser.username);
+    const totalLikes = userPosts.reduce((acc, p) => acc + (p.likes || []).length, 0);
+
+    mainView.innerHTML = `
+        <div class="profile-view-card">
+            <div class="profile-header-top">
+                <img class="profile-avatar-large" src="${escapeHtml(state.currentUser.profilePic)}" alt="Avatar">
+                <div class="profile-meta">
+                    <h2>${escapeHtml(state.currentUser.username)}</h2>
+                    <div class="handle">@${escapeHtml(state.currentUser.username.toLowerCase())}</div>
+                    <p class="profile-bio">Building fast full-stack applications with .NET 9 & MongoDB 🚀 Sharing tech insights, creative design, and community updates.</p>
+                    
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">${userPosts.length}</span>
+                            <span class="stat-label">Posts</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">1.4K</span>
+                            <span class="stat-label">Followers</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">389</span>
+                            <span class="stat-label">Following</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">${totalLikes}</span>
+                            <span class="stat-label">Total Likes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 10px;">
+                <button class="publish-btn" onclick="openCreatePostModal()">+ Create New Post</button>
+                <button class="icon-btn-pill" onclick="openAuthModal('login')">⚙️ Account Settings</button>
+            </div>
+        </div>
+
+        <div style="margin-top: 24px;">
+            <h3 style="margin-bottom: 16px; font-size: 18px;">Recent Activity (${userPosts.length})</h3>
+            <div id="feed-container"></div>
+        </div>
+    `;
+
+    renderPostsCustom(userPosts);
+}
+
+function showNotifications() {
+    const modal = document.getElementById('notifications-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function showMessages() {
+    const modal = document.getElementById('messages-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function setActiveNav(navId) {
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    const btn = document.getElementById(navId);
+    if (btn) btn.classList.add('active');
+}
+
+// Feed Filter Pills
+function setFeedFilter(filterType) {
+    state.filter = filterType;
+    document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
+    const pill = document.getElementById(`filter-${filterType}`);
+    if (pill) pill.classList.add('active');
+
+    if (state.activeView !== 'home') {
+        showHome();
+    } else {
+        renderPosts();
+    }
+    showToast(`Filter: ${filterType.toUpperCase()}`, 'success');
+}
+
+// Search and Tag Click
+function searchTag(tag) {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = '#' + tag;
+        filterPostsByQuery('#' + tag);
+    }
+}
+
+function filterByAuthor(username) {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = username;
+        filterPostsByQuery(username);
+    }
+}
+
+function filterPostsByQuery(query) {
+    if (state.activeView !== 'home') {
+        showHome();
+    }
+    const q = query.toLowerCase().trim();
+    const filtered = state.posts.filter(p => 
+        (p.postCaption && p.postCaption.toLowerCase().includes(q)) ||
+        (p.username && p.username.toLowerCase().includes(q))
+    );
+    renderPostsCustom(filtered);
+    showToast(`Found ${filtered.length} matching posts`, 'success');
+}
+
+// Story Viewer
+function openStory(author, imgUrl, caption) {
+    const modal = document.getElementById('story-modal');
+    const storyImg = document.getElementById('story-img');
+    const authorName = document.getElementById('story-author-name');
+    const authorAvatar = document.getElementById('story-author-avatar');
+    const storyCap = document.getElementById('story-caption');
+
+    if (storyImg) storyImg.src = imgUrl;
+    if (authorName) authorName.textContent = author;
+    if (authorAvatar) authorAvatar.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+    if (storyCap) storyCap.textContent = caption;
+
+    if (modal) modal.classList.add('active');
+
+    // Reset progress animation
+    const progress = document.getElementById('story-progress');
+    if (progress) {
+        progress.style.animation = 'none';
+        progress.offsetHeight; // trigger reflow
+        progress.style.animation = 'storyProgress 5s linear forwards';
+    }
+
+    setTimeout(() => {
+        closeModal('story-modal');
+    }, 5000);
+}
+
+function toggleFollow(btn) {
+    btn.classList.toggle('following');
+    const isFollowing = btn.classList.contains('following');
+    btn.textContent = isFollowing ? 'Following' : 'Follow';
+    showToast(isFollowing ? 'Creator followed! 🎉' : 'Unfollowed creator', 'success');
+}
+
+// Setup Event Listeners
+function setupEventListeners() {
+    // Nav Buttons
+    const navHome = document.getElementById('nav-home');
+    const navExplore = document.getElementById('nav-explore');
+    const navNotif = document.getElementById('nav-notifications');
+    const navMsg = document.getElementById('nav-messages');
+    const navProfile = document.getElementById('nav-profile');
+
+    if (navHome) navHome.onclick = showHome;
+    if (navExplore) navExplore.onclick = showExplore;
+    if (navNotif) navNotif.onclick = showNotifications;
+    if (navMsg) navMsg.onclick = showMessages;
+    if (navProfile) navProfile.onclick = showProfile;
+
+    // Search bar
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value;
+            if (query.trim() === '') {
+                renderPosts();
+            } else {
+                filterPostsByQuery(query);
+            }
+        });
+    }
+
+    // Story clicks
+    const stories = document.querySelectorAll('.story-item');
+    if (stories.length > 1) {
+        stories[1].onclick = () => openStory('sarah_travels', 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800', 'Sunset in the mountains! 🌄');
+        if (stories[2]) stories[2].onclick = () => openStory('maya_art', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800', 'Morning coffee & sketching sessions ☕🎨');
+        if (stories[3]) stories[3].onclick = () => openStory('alex_dev', 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800', 'Coding in dark mode 🚀');
+        if (stories[4]) stories[4].onclick = () => openStory('emma_design', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800', 'Design workshop recap ✨');
+    }
+
+    // Quick Post
+    if (publishQuickPostBtn) {
+        publishQuickPostBtn.addEventListener('click', () => {
+            createPost(quickPostCaption.value, state.selectedImageFile);
+        });
+    }
+
+    if (quickImgFile) {
+        quickImgFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.selectedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    previewImg.src = ev.target.result;
+                    imagePreviewBox.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (removeImgBtn) {
+        removeImgBtn.addEventListener('click', () => {
+            state.selectedImageFile = null;
+            if (quickImgFile) quickImgFile.value = '';
+            imagePreviewBox.style.display = 'none';
+        });
+    }
+
+    // Modal Create Post Form
+    const modalPostForm = document.getElementById('modal-post-form');
+    if (modalPostForm) {
+        modalPostForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const caption = document.getElementById('modal-post-caption').value;
+            const imgUrl = document.getElementById('modal-post-img-url').value;
+            const file = document.getElementById('modal-post-file').files[0];
+            createPost(caption, file, imgUrl);
+        });
+    }
+
+    // Auth Forms
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const pass = document.getElementById('login-password').value;
+            await handleLogin(email, pass);
+        });
+    }
+
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const pass = document.getElementById('reg-password').value;
+            await handleRegister(username, email, pass);
+        });
+    }
+
+    const forgotForm = document.getElementById('forgot-form');
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value.trim();
+            await handleForgotPassword(email);
+        });
+    }
+}
+
 // Modal Helpers
 function openAuthModal(tab = 'login') {
     authModal.classList.add('active');
@@ -496,6 +793,104 @@ function switchAuthTab(tab) {
     if (tabBtn) tabBtn.classList.add('active');
     if (pane) pane.style.display = 'block';
 }
+
+// Custom render for filtered lists
+function renderPostsCustom(postsList) {
+    const container = document.getElementById('feed-container');
+    if (!container) return;
+
+    if (!postsList || !postsList.length) {
+        container.innerHTML = `
+            <div class="post-card" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <p>No posts match this filter or search.</p>
+                <button class="publish-btn" style="margin-top: 14px;" onclick="setFeedFilter('all')">Show All Posts</button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = postsList.map(post => {
+        const isLiked = (post.likes || []).includes(state.currentUser.userId);
+        const likeCount = (post.likes || []).length;
+        const commentCount = (post.comments || []).length;
+        const formattedDate = formatTimeAgo(post.createdAt);
+        const authorImg = post.userProfilePic || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+
+        return `
+            <article class="post-card" id="post-${post.postId}">
+                <div class="post-header">
+                    <div class="post-author" onclick="filterByAuthor('${escapeHtml(post.username)}')" style="cursor: pointer;">
+                        <img class="avatar" src="${escapeHtml(authorImg)}" alt="avatar">
+                        <div>
+                            <div class="post-author-name">
+                                ${escapeHtml(post.username || 'Community User')}
+                                <span class="verified-badge">✓</span>
+                            </div>
+                            <div class="post-meta">${formattedDate}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-caption">
+                    ${formatHashtags(escapeHtml(post.postCaption || ''))}
+                </div>
+
+                ${post.postpicURL ? `
+                    <div class="post-media-container">
+                        <img src="${escapeHtml(post.postpicURL)}" alt="Post image" loading="lazy">
+                    </div>
+                ` : ''}
+
+                <div class="post-actions">
+                    <div class="actions-left">
+                        <button class="action-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.postId}')">
+                            <span class="heart-icon">${isLiked ? '❤️' : '🤍'}</span>
+                            <span id="likes-count-${post.postId}">${likeCount}</span>
+                        </button>
+                        <button class="action-btn" onclick="toggleComments('${post.postId}')">
+                            <span>💬</span>
+                            <span>${commentCount}</span>
+                        </button>
+                    </div>
+                    <button class="action-btn" onclick="sharePost('${post.postId}')">
+                        <span>↗️</span> Share
+                    </button>
+                </div>
+
+                <div class="comments-section" id="comments-${post.postId}">
+                    <div class="comment-list" id="comment-list-${post.postId}">
+                        ${(post.comments || []).map(c => `
+                            <div class="comment-item">
+                                <div class="comment-content">
+                                    <div class="comment-author">${escapeHtml(c.username || 'User')}</div>
+                                    <div class="comment-text">${escapeHtml(c.commentText || '')}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="add-comment-box">
+                        <input type="text" id="comment-input-${post.postId}" placeholder="Write a comment..." onkeydown="handleCommentKey(event, '${post.postId}')">
+                        <button class="send-comment-btn" onclick="addComment('${post.postId}')">Send</button>
+                    </div>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+// Modify renderPosts to respect filters
+const originalRenderPosts = renderPosts;
+renderPosts = function() {
+    let list = [...state.posts];
+    if (state.filter === 'trending') {
+        list.sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0));
+    } else if (state.filter === 'photos') {
+        list = list.filter(p => !!p.postpicURL);
+    } else if (state.filter === 'myposts') {
+        list = list.filter(p => p.userId === state.currentUser.userId || p.username === state.currentUser.username);
+    }
+    renderPostsCustom(list);
+};
 
 // Toast
 function showToast(message, type = 'success') {
@@ -524,7 +919,7 @@ function formatTimeAgo(dateString) {
 }
 
 function formatHashtags(text) {
-    return text.replace(/#(\w+)/g, '<span class="hashtag">#$1</span>');
+    return text.replace(/#(\w+)/g, '<span class="hashtag" onclick="searchTag(\'$1\')">#$1</span>');
 }
 
 function escapeHtml(str) {
